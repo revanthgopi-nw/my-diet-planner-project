@@ -56,6 +56,8 @@ export function AuthProvider({ children }) {
   const signup = async (userData) => {
     try {
       setLoading(true);
+      
+      // 1. Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -63,23 +65,27 @@ export function AuthProvider({ children }) {
 
       if (authError) throw authError;
 
-      // Insert user profile data
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            name: userData.name,
-            role: userData.role,
-            email: userData.email,
-          },
-        ]);
+      // 2. Insert profile using service role client
+      const { error: profileError } = await supabase.auth.getUser()
+        .then(async ({ data: { user } }) => {
+          return await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: user.id,
+                name: userData.name,
+                role: userData.role,
+                email: userData.email,
+              },
+            ]);
+        });
 
       if (profileError) throw profileError;
 
       toast.success('Signup successful! Please check your email for verification.');
       return true;
     } catch (error) {
+      console.error('Signup error:', error);
       toast.error(error.message);
       return false;
     } finally {
